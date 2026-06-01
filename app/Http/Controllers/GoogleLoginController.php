@@ -6,6 +6,7 @@ use Laravel\Socialite\Facades\Socialite;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Exception;
+use Illuminate\Support\Facades\Hash;
 
 class GoogleLoginController extends Controller
 {
@@ -14,9 +15,9 @@ class GoogleLoginController extends Controller
      */
     public function redirectToGoogle()
     {
-        // Al no pasarle nada a Socialite, este toma automáticamente 
-        // el 'redirect' definido en config/services.php
-        return Socialite::driver('google')->redirect();
+        return Socialite::driver('google')
+            ->redirectUrl(url('/google-callback'))
+            ->redirect();
     }
 
     /**
@@ -25,18 +26,34 @@ class GoogleLoginController extends Controller
     public function handleGoogleCallback()
     {
         try {
-            // Al igual que arriba, aquí también dejamos que Socialite 
-            // valide la respuesta usando la configuración centralizada.
-            $googleUser = Socialite::driver('google')->user();
-                
-            // Aquí va tu lógica para buscar o crear el usuario en la base de datos...
-            // $user = User::where('email', $googleUser->email)->first();
-            // ...
-            
+            $googleUser = Socialite::driver('google')
+                ->redirectUrl(url('/google-callback'))
+                ->user();
+
+            // 1. Buscar al usuario por email
+            $user = User::where('email', $googleUser->email)->first();
+
+            if ($user) {
+                // Si el usuario ya existe, iniciar sesión
+                Auth::login($user);
+            } else {
+                // 2. Si no existe, crearlo
+                $newUser = User::create([
+                    'name' => $googleUser->name,
+                    'email' => $googleUser->email,
+                    'google_id' => $googleUser->id,
+                    'password' => Hash::make('password123'), // O cualquier password temporal
+                ]);
+
+                Auth::login($newUser);
+            }
+
+            // 3. Redirigir al home o dashboard
+            return redirect('/home');
+
         } catch (Exception $e) {
-            // Es muy útil imprimir el error si esto sigue fallando
-            // dd($e->getMessage()); 
-            return redirect('/login')->with('error', 'Hubo un problema al iniciar sesión con Google.');
+            // Si hay error, redirigir al login con mensaje
+            return redirect('/login')->with('error', 'Hubo un problema al iniciar sesión con Google: ' . $e->getMessage());
         }
     }
 }

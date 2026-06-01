@@ -3,7 +3,6 @@
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Mail;
 use App\Http\Controllers\AdminController;
 use Laravel\Socialite\Facades\Socialite;
 use App\Models\User;
@@ -11,14 +10,14 @@ use Illuminate\Support\Str;
 
 /*
 |--------------------------------------------------------------------------
-| Web Routes - IronGym
+| Web Routes - IronGym (Estructura Corregida según Directorio Real)
 |--------------------------------------------------------------------------
 */
 
-// Ruta de inicio
+// 1. Ruta de inicio (resources/views/welcome.blade.php)
 Route::get('/', function () {
     return view('welcome');
-});
+})->name('welcome');
 
 // Rutas de Autenticación estándar de Laravel (Auth::routes)
 Auth::routes();
@@ -61,55 +60,87 @@ Route::get('/google-callback', function () {
 
 /*
 |--------------------------------------------------------------------------
-| Rutas del Carrito y Procesamiento de Pago (Simulado)
+| 🛒 RUTAS DEL CARRITO DE COMPRAS Y CHECKOUT
 |--------------------------------------------------------------------------
 */
 
-// Vista del carrito de compras
+// Vista del carrito (Apunta directo a resources/views/carrito.blade.php)
 Route::get('/carrito', function () {
     $carrito = session()->get('carrito', []);
-    return view('carrito.index', compact('carrito'));
+    return view('carrito', compact('carrito'));
 })->name('carrito.index');
 
-// Procesar el pago de la compra (CORREGIDO EL ->name('pago.procesar'))
-Route::post('/procesar-pago', function (Request $request) {
+// Agregar productos o membresías al carrito
+Route::post('/carrito/agregar/{id}', function (Request $request, $id) {
     $carrito = session()->get('carrito', []);
-    $direccion = $request->direccion;
-    $usuario = Auth::user();
 
-    // 🚫 SE MANTIENE COMENTADO EL ENVÍO DE CORREO PARA EVITAR EL ERROR 500 EN RAILWAY
-    /*
-    Mail::send('emails.recibo', ['carrito' => $carrito, 'direccion' => $direccion], function ($mensaje) use ($usuario) {
-        $mensaje->to($usuario->email, $usuario->name)
-                ->subject('Recibo de tu compra en IronGym');
-    });
-    */
+    // Datos simulados en memoria para los elementos añadidos
+    $productosDisponibles = [
+        1  => ['nombre' => 'Whey Protein Gold Standard', 'precio' => 1650, 'imagen' => '🥛'],
+        2  => ['nombre' => 'ISO100 Hydrolyzed', 'precio' => 1890, 'imagen' => '🥛'],
+        11 => ['nombre' => 'Plan Bronce 🥉', 'precio' => 350, 'imagen' => '💪'],
+        22 => ['nombre' => 'Plan Iron Plata 🥈', 'precio' => 600, 'imagen' => '🏋️'],
+        23 => ['nombre' => 'Plan Titan VIP 🥇', 'precio' => 900, 'imagen' => '👑']
+    ];
 
+    $producto = $productosDisponibles[$id] ?? ['nombre' => 'Suplemento Fitness', 'precio' => 500, 'imagen' => '📦'];
+
+    if (isset($carrito[$id])) {
+        $carrito[$id]['cantidad']++;
+    } else {
+        $carrito[$id] = [
+            "nombre" => $producto['nombre'],
+            "cantidad" => 1,
+            "precio" => $producto['precio'],
+            "imagen" => $producto['imagen']
+        ];
+    }
+
+    session()->put('carrito', $carrito);
+    return redirect()->back()->with('success', '¡Añadido al carrito con éxito!');
+})->name('carrito.agregar');
+
+// Vaciar carrito
+Route::get('/carrito-vaciar', function () {
     session()->forget('carrito');
+    return redirect()->route('carrito.index')->with('success', 'El carrito ha sido vaciado.');
+})->name('carrito.vaciar');
 
+// Checkout (Apunta directo a resources/views/checkout.blade.php)
+Route::get('/finalizar-compra', function () {
+    $carrito = session()->get('carrito', []);
+    return view('checkout', compact('carrito'));
+})->name('checkout');
+
+// Procesar el pago final (Completamente simulado y libre de SMTP / Mailtrap)
+Route::post('/procesar-pago', function (Request $request) {
+    session()->forget('carrito');
     return redirect('/tienda')->with('success', '¡Pago exitoso! Tu pedido ha sido procesado de forma correcta.');
-})->name('pago.procesar'); // <--- CORRECCIÓN CLAVE: El nombre original exacto que tus Blade buscan
+})->name('pago.procesar');
 
 /*
 |--------------------------------------------------------------------------
-| Rutas de la Tienda y Membresías (Vistas base)
+| Vistas Públicas de la aplicación (Mapeo de Rutas Directas)
 |--------------------------------------------------------------------------
 */
+
+// Tienda (Apunta directo a resources/views/tienda.blade.php)
 Route::get('/tienda', function () {
     $productos = session()->get('admin_productos', [
         1 => ['id'=>1, 'nombre'=>'Whey Protein Gold Standard', 'marca'=>'Optimum Nutrition', 'precio'=>1650, 'cat'=>'Proteína', 'imagen'=>'🥛'],
         2 => ['id'=>2, 'nombre'=>'ISO100 Hydrolyzed', 'marca'=>'Dymatize', 'precio'=>1890, 'cat'=>'Proteína', 'imagen'=>'🥛']
     ]);
-    return view('productos.index', compact('productos'));
+    return view('tienda', compact('productos'));
 })->name('productos.index');
 
+// Membresías (Apunta directo a resources/views/membresias.blade.php)
 Route::get('/membresias', function () {
-    return view('membresias.index');
+    return view('membresias');
 })->name('membresias.index');
 
 /*
 |--------------------------------------------------------------------------
-| Rutas del Panel de Administración (Controladas por AdminController)
+| Panel de Administración (Dentro de carpeta resources/views/admin/)
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth'])->group(function () {

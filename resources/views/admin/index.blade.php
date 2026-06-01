@@ -16,6 +16,36 @@
         </div>
     @endif
 
+    <div class="row text-center mb-4">
+        <div class="col-md-4 mb-3">
+            <div class="card bg-dark text-white border-secondary h-100 shadow p-3">
+                <div class="card-body d-flex flex-column justify-content-center align-items-center">
+                    <span class="fs-1 mb-2">📦</span>
+                    <h6 class="text-secondary fw-bold text-uppercase tracking-wider small">Total de Suplementos</h6>
+                    <h2 class="display-6 fw-bold text-warning m-0">{{ $totalProductos }} pzas</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card bg-dark text-white border-secondary h-100 shadow p-3">
+                <div class="card-body d-flex flex-column justify-content-center align-items-center">
+                    <span class="fs-1 mb-2">💰</span>
+                    <h6 class="text-secondary fw-bold text-uppercase tracking-wider small">Valor Total del Inventario</h6>
+                    <h2 class="display-6 fw-bold text-success m-0">${{ number_format($valorInventario, 2) }} MXN</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card bg-dark text-white border-secondary h-100 shadow p-3">
+                <div class="card-body d-flex flex-column justify-content-center align-items-center">
+                    <span class="fs-1 mb-2">📊</span>
+                    <h6 class="text-secondary fw-bold text-uppercase tracking-wider small">Precio Promedio Unitario</h6>
+                    <h2 class="display-6 fw-bold text-info m-0">${{ number_format($precioPromedio, 2) }} MXN</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="card bg-dark text-white border-secondary shadow">
         <div class="card-header border-secondary fw-bold text-warning fs-5 bg-black py-3">
             📦 Gestión de Inventario de Suplementos
@@ -43,7 +73,7 @@
                                 <td class="text-warning fw-bold">${{ number_format($item['precio'], 2) }} MXN</td>
                                 <td class="text-center">
                                     <a href="{{ route('admin.productos.editar', $item['id']) }}" class="btn btn-outline-info btn-sm me-1">📝 Editar</a>
-                                    <a href="{{ route('admin.productos.borrar', $item['id']) }}" class="btn btn-outline-danger btn-sm" onclick="return confirm('¿Seguro que deseas borrar este producto del inventario?')">🗑️ Borrar</a>
+                                    <a href="{{ route('admin.productos.borrar', $item['id']) }}" class="btn btn-outline-danger btn-sm" onclick=\"return confirm('¿Seguro que deseas borrar este producto del inventario?')\">🗑️ Borrar</a>
                                 </td>
                             </tr>
                         @endforeach

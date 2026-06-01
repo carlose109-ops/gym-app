@@ -5,6 +5,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use App\Http\Controllers\AdminController;
+use Laravel\Socialite\Facades\Socialite; // Aseguramos la importación de Socialite
+use App\Models\User;
 
 /*
 |--------------------------------------------------------------------------
@@ -17,10 +19,49 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-// Rutas de Autenticación por defecto de Laravel
+// Rutas de Autenticación estándar de Laravel (Auth::routes)
 Auth::routes();
 
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
+
+/*
+|--------------------------------------------------------------------------
+| 🌐 RUTAS DE AUTENTICACIÓN CON GOOGLE (RESTALURADAS)
+|--------------------------------------------------------------------------
+*/
+Route::get('/login/google', function () {
+    return Socialite::driver('google')->redirect();
+})->name('login.google');
+
+Route::get('/login/google/callback', function () {
+    try {
+        $googleUser = Socialite::driver('google')->user();
+        
+        // Buscar si el usuario ya existe por email o google_id
+        $user = User::where('email', $googleUser->email)->first();
+
+        if (!$user) {
+            // Si no existe, lo creamos de forma automática
+            $user = User::create([
+                'name' => $googleUser->name,
+                'email' => $googleUser->email,
+                'google_id' => $googleUser->id,
+                'password' => bcrypt(Str::random(16)), // Contraseña aleatoria segura
+            ]);
+        } else if (!$user->google_id) {
+            // Si existe pero no tenía el ID de Google vinculado, se lo agregamos
+            $user->update(['google_id' => $googleUser->id]);
+        }
+
+        // Iniciar sesión en Laravel
+        Auth::login($user);
+
+        return redirect('/home');
+
+    } catch (\Exception $e) {
+        return redirect('/login')->with('error', 'Hubo un error al iniciar sesión con Google.');
+    }
+});
 
 /*
 |--------------------------------------------------------------------------
@@ -34,13 +75,13 @@ Route::get('/carrito', function () {
     return view('carrito.index', compact('carrito'));
 })->name('carrito.index');
 
-// Procesar el pago de la compra (CORREGIDO SIN SMTP / MAILTRAP)
+// Procesar el pago de la compra (MANTENIDO SIN SMTP / MAILTRAP)
 Route::post('/procesar-pago', function (Request $request) {
     $carrito = session()->get('carrito', []);
     $direccion = $request->direccion;
     $usuario = Auth::user();
 
-    // 🚫 SE COMENTA EL ENVÍO DE CORREO PARA EVITAR EL ERROR 500 EN RAILWAY
+    // 🚫 SE MANTIENE COMENTADO EL ENVÍO DE CORREO PARA EVITAR EL ERROR 500 EN RAILWAY
     /*
     Mail::send('emails.recibo', ['carrito' => $carrito, 'direccion' => $direccion], function ($mensaje) use ($usuario) {
         $mensaje->to($usuario->email, $usuario->name)
@@ -48,12 +89,12 @@ Route::post('/procesar-pago', function (Request $request) {
     });
     */
 
-    // 🧼 Vaciamos el carrito de la sesión para reflejar que la compra concluyó
+    // 🧼 Vaciamos el carrito de la sesión
     session()->forget('carrito');
 
-    // 🚀 Redirección limpia con banner de éxito hacia la tienda
+    // 🚀 Redirección limpia hacia la tienda
     return redirect('/tienda')->with('success', '¡Pago exitoso! Tu pedido ha sido procesado de forma correcta.');
-})->name('pago.procesar');
+})->name('pago.processed');
 
 /*
 |--------------------------------------------------------------------------
@@ -61,7 +102,6 @@ Route::post('/procesar-pago', function (Request $request) {
 |--------------------------------------------------------------------------
 */
 Route::get('/tienda', function () {
-    // Si no existe la sesión de productos de administración, se puede usar un arreglo local
     $productos = session()->get('admin_productos', [
         1 => ['id'=>1, 'nombre'=>'Whey Protein Gold Standard', 'marca'=>'Optimum Nutrition', 'precio'=>1650, 'cat'=>'Proteína', 'imagen'=>'🥛'],
         2 => ['id'=>2, 'nombre'=>'ISO100 Hydrolyzed', 'marca'=>'Dymatize', 'precio'=>1890, 'cat'=>'Proteína', 'imagen'=>'🥛']

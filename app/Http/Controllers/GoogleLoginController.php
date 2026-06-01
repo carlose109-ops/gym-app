@@ -49,7 +49,7 @@ class GoogleLoginController extends Controller
             }
 
             // 3. Redirigir al home o dashboard
-            return redirect('/home');
+            return redirect('/');
 
         } catch (Exception $e) {
             // Si hay error, redirigir al login con mensaje

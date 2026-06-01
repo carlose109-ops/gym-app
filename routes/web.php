@@ -112,12 +112,34 @@ Route::get('/finalizar-compra', function () {
     return view('checkout', compact('carrito'));
 })->name('checkout');
 
-// Procesar el pago final (Completamente simulado y libre de SMTP / Mailtrap)
+// Procesar el pago final y enviar el correo de confirmación
 Route::post('/procesar-pago', function (Request $request) {
-    session()->forget('carrito');
-    return redirect('/tienda')->with('success', '¡Pago exitoso! Tu pedido ha sido procesado de forma correcta.');
-})->name('pago.procesar');
+    $carrito = session()->get('carrito', []);
+    $direccion = $request->direccion;
+    $usuario = Auth::user();
 
+    // Validamos que exista un usuario logueado para evitar fallos
+    if ($usuario) {
+        $data = [
+            'carrito'   => $carrito, 
+            'direccion' => $direccion,
+            'userName'  => $usuario->name // <--- Pasamos el nombre de manera directa y segura
+        ];
+
+        try {
+            Mail::send('emails.recibo', $data, function ($mensaje) use ($usuario) {
+                $mensaje->to($usuario->email, $usuario->name)
+                        ->subject('Recibo de tu compra en IronGym');
+            });
+        } catch (\Exception $e) {
+            // Si el SMTP de Mailtrap falla en producción, se captura el error para que la página NO se rompa
+            Log::error('Error enviando correo: ' . $e->getMessage());
+        }
+    }
+
+    session()->forget('carrito');
+    return redirect('/tienda')->with('success', '¡Pago exitoso! Tu pedido ha sido procesado de forma correcta y se ha enviado un correo de confirmación.');
+})->name('pago.procesar');
 /*
 |--------------------------------------------------------------------------
 | Vistas Públicas de la aplicación (Mapeo de Rutas Directas)

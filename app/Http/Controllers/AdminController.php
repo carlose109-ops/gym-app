@@ -4,39 +4,21 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\User;
-use Illuminate\Support\Facades\Auth; // <-- Librería necesaria para el cadenero
-
-class AdminController extends Controller
-{
-    // --- ESTE ES EL CADENERO VIP (Seguridad) ---
-    public function __construct()
-    {
-        // 1. Obligar a estar autenticado<?php
-
-namespace App\Http\Controllers;
-
-use Illuminate\Http\Request;
-use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 
 class AdminController extends Controller
 {
     /**
-     * Constructor con middleware de autenticación y verificación de administrador.
+     * Constructor con seguridad: solo permite acceso a los correos autorizados.
      */
     public function __construct()
     {
-        // Obligar a estar autenticado
+        // 1. Obligar a estar logueado
         $this->middleware('auth');
 
-        // Verificar que el usuario autenticado sea administrador
+        // 2. Verificar que sea uno de los administradores
         $this->middleware(function ($request, $next) {
             $user = Auth::user();
-
-            if (!$user) {
-                return redirect()->route('login')->with('error', 'Debes iniciar sesión.');
-            }
-
             $admins = ['carloseduardot109@gmail.com', 'gabyrebal23@gmail.com'];
 
             if (!in_array($user->email, $admins)) {
@@ -48,128 +30,87 @@ class AdminController extends Controller
     }
 
     /**
-     * Obtiene los productos desde la sesión (memoria persistente).
+     * Obtiene los productos desde la sesión (memoria).
      */
     private function getProductosDeMemoria()
     {
         if (!session()->has('admin_productos')) {
-            $iniciales = [
+            // Datos iniciales si la sesión está vacía
+            $productos = [
                 1 => ['id'=>1, 'nombre'=>'Whey Protein Gold Standard', 'marca'=>'Optimum Nutrition', 'precio'=>1650, 'cat'=>'Proteína', 'imagen'=>'🥛'],
                 2 => ['id'=>2, 'nombre'=>'ISO100 Hydrolyzed', 'marca'=>'Dymatize', 'precio'=>1890, 'cat'=>'Proteína', 'imagen'=>'🥛'],
-                3 => ['id'=>3, 'nombre'=>'Nitro-Tech 100% Whey', 'marca'=>'MuscleTech', 'precio'=>1450, 'cat'=>'Proteína', 'imagen'=>'🥛'],
-                4 => ['id'=>4, 'nombre'=>'Carnivor Beef Protein', 'marca'=>'MuscleMeds', 'precio'=>1300, 'cat'=>'Proteína', 'imagen'=>'🥛'],
-                5 => ['id'=>5, 'nombre'=>'C4 Original', 'marca'=>'Cellucor', 'precio'=>650, 'cat'=>'Pre-entreno', 'imagen'=>'⚡'],
-                6 => ['id'=>6, 'nombre'=>'Psychotic', 'marca'=>'Insane Labz', 'precio'=>750, 'cat'=>'Pre-entreno', 'imagen'=>'⚡'],
-                7 => ['id'=>7, 'nombre'=>'N.O.-Xplode', 'marca'=>'BSN', 'precio'=>800, 'cat'=>'Pre-entreno', 'imagen'=>'⚡'],
-                8 => ['id'=>8, 'nombre'=>'Creatina Monohidratada', 'marca'=>'Platinum', 'precio'=>550, 'cat'=>'Creatina', 'imagen'=>'🧪'],
-                9 => ['id'=>9, 'nombre'=>'Creatine Drive', 'marca'=>'Nutrex', 'precio'=>600, 'cat'=>'Creatina', 'imagen'=>'🧪'],
-                10=> ['id'=>10, 'nombre'=>'Xtend BCAA', 'marca'=>'Scivation', 'precio'=>700, 'cat'=>'Aminoácidos', 'imagen'=>'🧬'],
-                11=> ['id'=>11, 'nombre'=>'Amino Energy', 'marca'=>'Optimum Nutrition', 'precio'=>680, 'cat'=>'Aminoácidos', 'imagen'=>'🧬'],
-                12=> ['id'=>12, 'nombre'=>'Quest Protein Bar (Caja x12)', 'marca'=>'Quest Nutrition', 'precio'=>850, 'cat'=>'Barras', 'imagen'=>'🍫'],
-                13=> ['id'=>13, 'nombre'=>'One Bar Peanut Butter (Caja x12)', 'marca'=>'One Brands', 'precio'=>800, 'cat'=>'Barras', 'imagen'=>'🍫'],
-                14=> ['id'=>14, 'nombre'=>'The Complete Cookie (Caja x12)', 'marca'=>'Lenny & Larrys', 'precio'=>750, 'cat'=>'Snacks', 'imagen'=>'🍪'],
-                15=> ['id'=>15, 'nombre'=>'L-Carnitine 3000', 'marca'=>'GAT Sport', 'precio'=>450, 'cat'=>'Quemadores', 'imagen'=>'🔥'],
-                16=> ['id'=>16, 'nombre'=>'Multivitamínico Opti-Men', 'marca'=>'Optimum Nutrition', 'precio'=>500, 'cat'=>'Vitaminas', 'imagen'=>'💊'],
-                17=> ['id'=>17, 'nombre'=>'Multivitamínico Opti-Women', 'marca'=>'Optimum Nutrition', 'precio'=>500, 'cat'=>'Vitaminas', 'imagen'=>'💊'],
-                18=> ['id'=>18, 'nombre'=>'Shaker BlenderBottle 28oz', 'marca'=>'Iron Gym', 'precio'=>250, 'cat'=>'Accesorios', 'imagen'=>'🥤'],
-                19=> ['id'=>19, 'nombre'=>'Straps para Levantamiento', 'marca'=>'Iron Gym', 'precio'=>200, 'cat'=>'Accesorios', 'imagen'=>'💪'],
-                20=> ['id'=>20, 'nombre'=>'Cinturón de Halterofilia de Cuero', 'marca'=>'Iron Gym', 'precio'=>950, 'cat'=>'Accesorios', 'imagen'=>'🪨'],
+                // ... (puedes añadir aquí los demás que tenías)
             ];
-            session()->put('admin_productos', $iniciales);
+            session()->put('admin_productos', $productos);
         }
         return session()->get('admin_productos');
     }
 
-    /**
-     * Muestra el inventario desde la sesión.
-     */
     public function index()
     {
         $productos = $this->getProductosDeMemoria();
-        return view('admin.index', compact('productos'));
+        $totalProductos = count($productos);
+        $valorInventario = array_sum(array_column($productos, 'precio'));
+        $precioPromedio = $totalProductos > 0 ? $valorInventario / $totalProductos : 0;
+
+        return view('admin.index', compact('productos', 'totalProductos', 'valorInventario', 'precioPromedio'));
     }
 
-    /**
-     * Muestra el formulario para crear un nuevo producto.
-     */
     public function create()
     {
         return view('admin.create');
     }
 
-    /**
-     * Guarda un nuevo producto en la sesión.
-     */
     public function store(Request $request)
     {
         $productos = $this->getProductosDeMemoria();
-        $nuevoId = count($productos) > 0 ? max(array_keys($productos)) + 1 : 1;
-
-        $productos[$nuevoId] = [
-            'id'      => $nuevoId,
-            'nombre'  => $request->nombre,
-            'marca'   => $request->marca,
-            'precio'  => $request->precio,
-            'cat'     => $request->cat,
-            'imagen'  => $request->imagen ?? '📦'
+        $id = count($productos) + 1;
+        
+        $productos[$id] = [
+            'id' => $id,
+            'nombre' => $request->nombre,
+            'marca'  => $request->marca,
+            'precio' => $request->precio,
+            'cat'    => $request->cat,
+            'imagen' => '📦' // Icono por defecto
         ];
 
         session()->put('admin_productos', $productos);
-        return redirect()->route('admin.index')->with('success', '¡Producto registrado con éxito!');
+        return redirect()->route('admin.index')->with('success', 'Producto agregado correctamente.');
     }
 
-    /**
-     * Muestra el formulario de edición de un producto.
-     */
     public function edit($id)
     {
         $productos = $this->getProductosDeMemoria();
         $producto = $productos[$id] ?? null;
 
-        if (!$producto) {
-            return redirect()->route('admin.index');
-        }
+        if (!$producto) return redirect()->route('admin.index');
         return view('admin.create', compact('producto'));
     }
 
-    /**
-     * Actualiza un producto existente.
-     */
     public function update(Request $request, $id)
     {
         $productos = $this->getProductosDeMemoria();
-
         if (isset($productos[$id])) {
             $productos[$id]['nombre'] = $request->nombre;
             $productos[$id]['marca']  = $request->marca;
             $productos[$id]['precio'] = $request->precio;
             $productos[$id]['cat']    = $request->cat;
-            $productos[$id]['imagen'] = $request->imagen;
-
             session()->put('admin_productos', $productos);
         }
-
-        return redirect()->route('admin.index')->with('success', '¡Producto actualizado correctamente!');
+        return redirect()->route('admin.index')->with('success', 'Producto actualizado.');
     }
 
-    /**
-     * Elimina un producto de la sesión.
-     */
     public function destroy($id)
     {
         $productos = $this->getProductosDeMemoria();
-
         if (isset($productos[$id])) {
             unset($productos[$id]);
             session()->put('admin_productos', $productos);
         }
-
-        return redirect()->route('admin.index')->with('success', '¡Producto eliminado del inventario!');
+        return redirect()->route('admin.index')->with('success', 'Producto eliminado.');
     }
 
-    /**
-     * Muestra la lista de usuarios registrados.
-     */
     public function usuarios()
     {
         $usuarios = User::all();

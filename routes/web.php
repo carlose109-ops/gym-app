@@ -5,21 +5,18 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use App\Http\Controllers\GoogleLoginController;
+use App\Http\Controllers\AdminController;
 
 // ==========================================
 // 1. RUTAS DE AUTENTICACIÓN Y GOOGLE
 // ==========================================
-
-// Genera las rutas base de login, registro y recuperación
 Auth::routes();
 
-// Rutas exclusivas para el Login con Google
 Route::get('/login-google', [GoogleLoginController::class, 'redirectToGoogle'])->name('login.google');
 Route::get('/google-callback', [GoogleLoginController::class, 'handleGoogleCallback']);
 
-
 // ==========================================
-// 2. CATÁLOGO DE PRODUCTOS (Simulación de Base de Datos)
+// 2. CATÁLOGO DE PRODUCTOS (Simulación)
 // ==========================================
 $productos = [
     1 => ['id'=>1, 'nombre'=>'Whey Protein Gold Standard', 'marca'=>'Optimum Nutrition', 'precio'=>1650, 'cat'=>'Proteína', 'imagen'=>'🥛'],
@@ -42,21 +39,16 @@ $productos = [
     18=> ['id'=>18, 'nombre'=>'Shaker BlenderBottle 28oz', 'marca'=>'Iron Gym', 'precio'=>250, 'cat'=>'Accesorios', 'imagen'=>'🥤'],
     19=> ['id'=>19, 'nombre'=>'Straps para Levantamiento', 'marca'=>'Iron Gym', 'precio'=>200, 'cat'=>'Accesorios', 'imagen'=>'💪'],
     20=> ['id'=>20, 'nombre'=>'Cinturón de Halterofilia de Cuero', 'marca'=>'Iron Gym', 'precio'=>950, 'cat'=>'Accesorios', 'imagen'=>'🪨'],
-    // ... tus otros 20 productos ...
-    20=> ['id'=>20, 'nombre'=>'Cinturón de Halterofilia de Cuero', 'marca'=>'Iron Gym', 'precio'=>950, 'cat'=>'Accesorios', 'imagen'=>'🪨'],
-    
-    // --- MEMBRESÍAS ---
+
+    // MEMBRESÍAS
     21=> ['id'=>21, 'nombre'=>'Membresía Plan Bronce (1 Mes)', 'marca'=>'IronGym', 'precio'=>350, 'cat'=>'Membresía', 'imagen'=>'🥉'],
     22=> ['id'=>22, 'nombre'=>'Membresía Plan Iron (1 Mes)', 'marca'=>'IronGym', 'precio'=>500, 'cat'=>'Membresía', 'imagen'=>'🥇'],
     23=> ['id'=>23, 'nombre'=>'Membresía Plan Titan VIP (1 Mes)', 'marca'=>'IronGym', 'precio'=>900, 'cat'=>'Membresía', 'imagen'=>'💎'],
 ];
 
-
-
 // ==========================================
-// 3. RUTAS PÚBLICAS (Cualquiera puede entrar)
+// 3. RUTAS PÚBLICAS
 // ==========================================
-
 Route::get('/', function () {
     return view('welcome');
 });
@@ -65,90 +57,71 @@ Route::get('/membresias', function () {
     return view('membresias');
 })->name('membresias.index');
 
-Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
-
 Route::get('/tienda', function () use ($productos) {
     return view('tienda', ['productos' => $productos]);
 })->name('productos.index');
 
-
 // ==========================================
-// 4. RUTAS PROTEGIDAS (Solo usuarios que iniciaron sesión)
+// 4. RUTAS PROTEGIDAS (requieren autenticación)
 // ==========================================
-
 Route::middleware(['auth'])->group(function () use ($productos) {
     
-    // ----- RUTAS DEL CARRITO -----
-    
-    // Mostrar Carrito
+    // ---- CARRITO ----
     Route::get('/carrito', function () {
         $carrito = session()->get('carrito', []);
         return view('carrito', ['carrito' => $carrito]);
     })->name('carrito.index');
 
-    // Agregar producto al carrito
     Route::post('/carrito/agregar/{id}', function (Request $request, $id) use ($productos) {
-        $carrito = session()->get('carrito', []); 
-        
-        if(isset($productos[$id])) {
-            if(isset($carrito[$id])) {
-                $carrito[$id]['cantidad']++; 
+        $carrito = session()->get('carrito', []);
+        if (isset($productos[$id])) {
+            if (isset($carrito[$id])) {
+                $carrito[$id]['cantidad']++;
             } else {
                 $carrito[$id] = [
-                    'nombre' => $productos[$id]['nombre'],
-                    'precio' => $productos[$id]['precio'],
-                    'imagen' => $productos[$id]['imagen'],
+                    'nombre'   => $productos[$id]['nombre'],
+                    'precio'   => $productos[$id]['precio'],
+                    'imagen'   => $productos[$id]['imagen'],
                     'cantidad' => 1
                 ];
             }
-            session()->put('carrito', $carrito); 
+            session()->put('carrito', $carrito);
         }
         return redirect()->back()->with('success', '¡' . $productos[$id]['nombre'] . ' agregado al carrito!');
     })->name('carrito.agregar');
 
-    // Vaciar el Carrito
     Route::get('/carrito/vaciar', function () {
         session()->forget('carrito');
         return redirect()->route('carrito.index');
     })->name('carrito.vaciar');
 
-
-    // ----- RUTAS DE PAGO Y CORREO -----
-
-    // Mostrar pantalla de pago final (Checkout)
+    // ---- PAGO Y CORREO ----
     Route::get('/checkout', function () {
         $carrito = session()->get('carrito', []);
-        if(empty($carrito)) return redirect()->route('carrito.index'); // Si no hay nada, regresa al carrito
+        if (empty($carrito)) return redirect()->route('carrito.index');
         return view('checkout', compact('carrito'));
     })->name('checkout');
 
-    // Procesar el pago y enviar correo
     Route::post('/procesar-pago', function (Request $request) {
         $carrito = session()->get('carrito', []);
         $direccion = $request->direccion;
         $usuario = Auth::user();
 
-        // Enviar el correo usando la plantilla 'emails.recibo'
-        Mail::send('emails.recibo', ['carrito' => $carrito, 'direccion' => $direccion], function($mensaje) use ($usuario) {
+        Mail::send('emails.recibo', ['carrito' => $carrito, 'direccion' => $direccion], function ($mensaje) use ($usuario) {
             $mensaje->to($usuario->email, $usuario->name)
                     ->subject('Recibo de tu compra en IronGym');
         });
 
-        // Vaciar el carrito y redirigir
         session()->forget('carrito');
         return redirect('/tienda')->with('success', '¡Pago exitoso! Hemos enviado tu recibo por correo electrónico.');
     })->name('pago.procesar');
-// ----- RUTAS DEL ADMINISTRADOR (PANEL CRUD) -----
-    // Inventario
-    Route::get('/admin', [App\Http\Controllers\AdminController::class, 'index'])->name('admin.index');
-    Route::get('/admin/productos/crear', [App\Http\Controllers\AdminController::class, 'create'])->name('admin.productos.crear');
-    Route::post('/admin/productos/guardar', [App\Http\Controllers\AdminController::class, 'store'])->name('admin.productos.guardar');
-    
-    // Simulación de Editar y Borrar Productos
-    Route::get('/admin/productos/{id}/editar', [App\Http\Controllers\AdminController::class, 'edit'])->name('admin.productos.editar');
-    Route::post('/admin/productos/{id}/actualizar', [App\Http\Controllers\AdminController::class, 'update'])->name('admin.productos.actualizar');
-    Route::get('/admin/productos/{id}/borrar', [App\Http\Controllers\AdminController::class, 'destroy'])->name('admin.productos.borrar');
 
-    // Control de Usuarios (Miembros)
-    Route::get('/admin/usuarios', [App\Http\Controllers\AdminController::class, 'usuarios'])->name('admin.usuarios');
+    // ---- ADMINISTRADOR (CRUD) ----
+    Route::get('/admin', [AdminController::class, 'index'])->name('admin.index');
+    Route::get('/admin/productos/crear', [AdminController::class, 'create'])->name('admin.productos.crear');
+    Route::post('/admin/productos/guardar', [AdminController::class, 'store'])->name('admin.productos.guardar');
+    Route::get('/admin/productos/{id}/editar', [AdminController::class, 'edit'])->name('admin.productos.editar');
+    Route::post('/admin/productos/{id}/actualizar', [AdminController::class, 'update'])->name('admin.productos.actualizar');
+    Route::get('/admin/productos/{id}/borrar', [AdminController::class, 'destroy'])->name('admin.productos.borrar');
+    Route::get('/admin/usuarios', [AdminController::class, 'usuarios'])->name('admin.usuarios');
 });

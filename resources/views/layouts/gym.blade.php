@@ -21,13 +21,11 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item"><a class="nav-link" href="{{ url('/') }}">Inicio</a></li>
-                    
                     <li class="nav-item"><a class="nav-link" href="{{ route('membresias.index') }}">Membresías</a></li>
-                    
                     <li class="nav-item"><a class="nav-link" href="{{ route('productos.index') }}">Tienda</a></li>
                     <li class="nav-item"><a class="nav-link" href="{{ route('carrito.index') }}">Carrito 🛒</a></li>
                     
-                    @if(Auth::check() && Auth::user()->email === 'gabyrebal23@gmail.com')
+                    @if(Auth::check() && (Auth::user()->email === 'carloseduardot109@gmail.com' || Auth::user()->email === 'gabyrebal23@gmail.com'))
                         <li class="nav-item">
                             <a class="nav-link text-warning fw-bold" href="{{ route('admin.index') }}">Panel Administrador ⚙️</a>
                         </li>
@@ -38,11 +36,19 @@
                             <a class="nav-link btn btn-outline-warning btn-sm ms-2 text-white" href="{{ route('login') }}">Iniciar Sesión</a>
                         </li>
                     @else
+                        @php
+                            $admins = ['carloseduardot109@gmail.com', 'gabyrebal23@gmail.com'];
+                            $isAdmin = in_array(Auth::user()->email, $admins);
+                        @endphp
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle btn btn-outline-warning btn-sm ms-2 text-white" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
-                                {{ Auth::user()->name }}
+                                {{ Auth::user()->name }} {{$isAdmin ? '(Admin)' : ''}}
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end">
+                                @if($isAdmin)
+                                    <li><a class="dropdown-item fw-bold text-warning" href="{{ route('admin.index') }}">⚙️ Panel Admin</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                @endif
                                 <li>
                                     <form action="{{ route('logout') }}" method="POST">
                                         @csrf
@@ -61,6 +67,12 @@
         @if(session('error'))
             <div class="alert alert-danger text-center fw-bold m-0 rounded-0 border-0 shadow-sm" style="background-color: #dc3545; color: white;">
                 {{ session('error') }}
+            </div>
+        @endif
+
+        @if(session('success'))
+            <div class="alert alert-success text-center fw-bold m-0 rounded-0 border-0 shadow-sm" style="background-color: #198754; color: white;">
+                {{ session('success') }}
             </div>
         @endif
 

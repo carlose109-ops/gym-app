@@ -11,32 +11,45 @@ class AdminController extends Controller
     // --- ESTE ES EL CADENERO VIP (Seguridad) ---
     public function __construct()
     {
-        // 1. Obligar a estar autenticado
+        // 1. Obligar a estar autenticado<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use App\Models\User;
+use Illuminate\Support\Facades\Auth;
+
+class AdminController extends Controller
+{
+    /**
+     * Constructor con middleware de autenticación y verificación de administrador.
+     */
+    public function __construct()
+    {
+        // Obligar a estar autenticado
         $this->middleware('auth');
 
-        // 2. Verificar que el usuario autenticado sea administrador
+        // Verificar que el usuario autenticado sea administrador
         $this->middleware(function ($request, $next) {
             $user = Auth::user();
 
-            // Si por alguna razón no hay usuario autenticado (no debería ocurrir)
             if (!$user) {
                 return redirect()->route('login')->with('error', 'Debes iniciar sesión.');
             }
 
-            // Lista de administradores (puedes moverla a config o .env)
             $admins = ['carloseduardot109@gmail.com', 'gabyrebal23@gmail.com'];
 
-            // Si no está en la lista, redirige a casa con mensaje de error
             if (!in_array($user->email, $admins)) {
                 return redirect('/')->with('error', 'No tienes permisos de administrador.');
             }
 
-            // Si es administrador, continúa
             return $next($request);
         });
     }
 
-    // Función interna para asegurar que los 20 productos vivan en la memoria persistente
+    /**
+     * Obtiene los productos desde la sesión (memoria persistente).
+     */
     private function getProductosDeMemoria()
     {
         if (!session()->has('admin_productos')) {
@@ -67,59 +80,70 @@ class AdminController extends Controller
         return session()->get('admin_productos');
     }
 
-    // Muestra el inventario desde la memoria
+    /**
+     * Muestra el inventario desde la sesión.
+     */
     public function index()
     {
         $productos = $this->getProductosDeMemoria();
         return view('admin.index', compact('productos'));
     }
 
+    /**
+     * Muestra el formulario para crear un nuevo producto.
+     */
     public function create()
     {
         return view('admin.create');
     }
 
-    // Guarda un producto nuevo de verdad en la memoria
+    /**
+     * Guarda un nuevo producto en la sesión.
+     */
     public function store(Request $request)
     {
         $productos = $this->getProductosDeMemoria();
-        
-        // Generar un ID nuevo automáticamente
         $nuevoId = count($productos) > 0 ? max(array_keys($productos)) + 1 : 1;
 
         $productos[$nuevoId] = [
-            'id' => $nuevoId,
-            'nombre' => $request->nombre,
-            'marca' => $request->marca,
-            'precio' => $request->precio,
-            'cat' => $request->cat,
-            'imagen' => $request->imagen ?? '📦'
+            'id'      => $nuevoId,
+            'nombre'  => $request->nombre,
+            'marca'   => $request->marca,
+            'precio'  => $request->precio,
+            'cat'     => $request->cat,
+            'imagen'  => $request->imagen ?? '📦'
         ];
 
         session()->put('admin_productos', $productos);
         return redirect()->route('admin.index')->with('success', '¡Producto registrado con éxito!');
     }
 
-    // Busca el producto exacto para rellenar el formulario
+    /**
+     * Muestra el formulario de edición de un producto.
+     */
     public function edit($id)
     {
         $productos = $this->getProductosDeMemoria();
         $producto = $productos[$id] ?? null;
-        
-        if (!$producto) return redirect()->route('admin.index');
+
+        if (!$producto) {
+            return redirect()->route('admin.index');
+        }
         return view('admin.create', compact('producto'));
     }
 
-    // Reemplaza los datos viejos por los nuevos en la memoria
+    /**
+     * Actualiza un producto existente.
+     */
     public function update(Request $request, $id)
     {
         $productos = $this->getProductosDeMemoria();
 
         if (isset($productos[$id])) {
             $productos[$id]['nombre'] = $request->nombre;
-            $productos[$id]['marca'] = $request->marca;
+            $productos[$id]['marca']  = $request->marca;
             $productos[$id]['precio'] = $request->precio;
-            $productos[$id]['cat'] = $request->cat;
+            $productos[$id]['cat']    = $request->cat;
             $productos[$id]['imagen'] = $request->imagen;
 
             session()->put('admin_productos', $productos);
@@ -128,7 +152,9 @@ class AdminController extends Controller
         return redirect()->route('admin.index')->with('success', '¡Producto actualizado correctamente!');
     }
 
-    // Elimina el producto por completo de la memoria
+    /**
+     * Elimina un producto de la sesión.
+     */
     public function destroy($id)
     {
         $productos = $this->getProductosDeMemoria();
@@ -141,6 +167,9 @@ class AdminController extends Controller
         return redirect()->route('admin.index')->with('success', '¡Producto eliminado del inventario!');
     }
 
+    /**
+     * Muestra la lista de usuarios registrados.
+     */
     public function usuarios()
     {
         $usuarios = User::all();

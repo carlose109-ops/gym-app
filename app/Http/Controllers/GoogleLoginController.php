@@ -37,27 +37,67 @@ class GoogleLoginController extends Controller
                 $user = User::create([
                     'name' => $googleUser->name,
                     'email' => $googleUser->email,
+                    'google_id' => $googleUser->id,<?php
+
+namespace App\Http\Controllers;
+
+use Laravel\Socialite\Facades\Socialite;
+use App\Models\User;
+use Illuminate\Support\Facades\Auth;
+use Exception;
+use Illuminate\Support\Facades\Hash;
+
+class GoogleLoginController extends Controller
+{
+    public function redirectToGoogle()
+    {
+        return Socialite::driver('google')
+            ->redirectUrl(url('/google-callback'))
+            ->redirect();
+    }
+
+    public function handleGoogleCallback()
+    {
+        try {
+            $googleUser = Socialite::driver('google')
+                ->redirectUrl(url('/google-callback'))
+                ->user();
+
+            // Buscar o crear usuario
+            $user = User::where('email', $googleUser->email)->first();
+
+            if (!$user) {
+                $user = User::create([
+                    'name'      => $googleUser->name,
+                    'email'     => $googleUser->email,
                     'google_id' => $googleUser->id,
-                    'password' => Hash::make('password123'),
+                    'password'  => Hash::make('password123'), // o un generador aleatorio
                 ]);
+            } else {
+                // Si ya existe pero no tiene google_id, actualízalo
+                if (empty($user->google_id)) {
+                    $user->google_id = $googleUser->id;
+                    $user->save();
+                }
             }
 
-            // 2. Iniciar sesión
+            // Iniciar sesión
             Auth::login($user);
 
-            // 3. Lógica de redirección inteligente
+            // Lista de administradores (mejor mantenerla en un solo lugar, por ejemplo en config/admin.php)
             $admins = ['carloseduardot109@gmail.com', 'gabyrebal23@gmail.com'];
-            
-            if (in_array(Auth::user()->email, $admins)) {
-                // Si es administrador, va al panel de control
-                return redirect()->route('admin.index');
+
+            // Redirigir según el rol
+            if (in_array($user->email, $admins)) {
+                return redirect()->route('admin.index')->with('success', 'Bienvenido al panel de administración.');
             }
 
-            // Si es usuario normal, va a la página principal
-            return redirect('/');
+            return redirect('/')->with('success', 'Has iniciado sesión correctamente.');
 
         } catch (Exception $e) {
-            return redirect('/login')->with('error', 'Hubo un problema al iniciar sesión con Google.');
+            // Registrar el error en el log para depuración (opcional)
+            \Log::error('Error en login con Google: ' . $e->getMessage());
+            return redirect('/login')->with('error', 'Hubo un problema al iniciar sesión con Google. Inténtalo de nuevo.');
         }
     }
 }

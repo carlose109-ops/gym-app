@@ -10,28 +10,31 @@ class AdminController extends Controller
 {
     // --- ESTE ES EL CADENERO VIP (Seguridad) ---
     public function __construct()
-{
-    $this->middleware('auth');
-    
-    $this->middleware(function ($request, $next) {
-        $user = Auth::user();
-        
-        // --- DEPURACIÓN TEMPORAL ---
-        // Si ves esto en pantalla al entrar, sabrás qué está pasando
-        if (!$user) {
-            dd("No hay usuario autenticado");
-        }
-        
-        $admins = ['carloseduardot109@gmail.com', 'gabyrebal23@gmail.com'];
+    {
+        // 1. Obligar a estar autenticado
+        $this->middleware('auth');
 
-        if (!in_array($user->email, $admins)) {
-            // Esto te dirá qué correo está leyendo el sistema realmente
-            dd("Correo actual: " . $user->email . " - No autorizado.");
-        }
-        
-        return $next($request);
-    });
-}
+        // 2. Verificar que el usuario autenticado sea administrador
+        $this->middleware(function ($request, $next) {
+            $user = Auth::user();
+
+            // Si por alguna razón no hay usuario autenticado (no debería ocurrir)
+            if (!$user) {
+                return redirect()->route('login')->with('error', 'Debes iniciar sesión.');
+            }
+
+            // Lista de administradores (puedes moverla a config o .env)
+            $admins = ['carloseduardot109@gmail.com', 'gabyrebal23@gmail.com'];
+
+            // Si no está en la lista, redirige a casa con mensaje de error
+            if (!in_array($user->email, $admins)) {
+                return redirect('/')->with('error', 'No tienes permisos de administrador.');
+            }
+
+            // Si es administrador, continúa
+            return $next($request);
+        });
+    }
 
     // Función interna para asegurar que los 20 productos vivan en la memoria persistente
     private function getProductosDeMemoria()

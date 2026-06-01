@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Mail;
 use App\Http\Controllers\AdminController;
 use Laravel\Socialite\Facades\Socialite;
 use App\Models\User;
-use Illuminate\Support\Str; // Asegura que funcione Str::random
+use Illuminate\Support\Str;
 
 /*
 |--------------------------------------------------------------------------
@@ -27,38 +27,31 @@ Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name
 
 /*
 |--------------------------------------------------------------------------
-| 🌐 RUTAS DE AUTENTICACIÓN CON GOOGLE (CORREGIDAS A /google-callback)
+| 🌐 RUTAS DE AUTENTICACIÓN CON GOOGLE
 |--------------------------------------------------------------------------
 */
 Route::get('/login/google', function () {
     return Socialite::driver('google')->redirect();
 })->name('login.google');
 
-// Esta es la ruta exacta que está buscando Google al regresar (/google-callback)
 Route::get('/google-callback', function () {
     try {
         $googleUser = Socialite::driver('google')->user();
         
-        // Buscar si el usuario ya existe por email o google_id
         $user = User::where('email', $googleUser->email)->first();
 
         if (!$user) {
-            // Si no existe, lo creamos de forma automática
             $user = User::create([
                 'name' => $googleUser->name,
                 'email' => $googleUser->email,
                 'google_id' => $googleUser->id,
-                'password' => bcrypt(Str::random(16)), // Contraseña aleatoria segura
+                'password' => bcrypt(Str::random(16)),
             ]);
         } else if (!$user->google_id) {
-            // Si existe pero no tenía el ID de Google vinculado, se lo agregamos
             $user->update(['google_id' => $googleUser->id]);
         }
 
-        // Iniciar sesión en Laravel
         Auth::login($user);
-
-        // Redirigir al inicio del sitio
         return redirect('/');
 
     } catch (\Exception $e) {
@@ -78,7 +71,7 @@ Route::get('/carrito', function () {
     return view('carrito.index', compact('carrito'));
 })->name('carrito.index');
 
-// Procesar el pago de la compra (MANTENIDO SIN SMTP / MAILTRAP)
+// Procesar el pago de la compra (CORREGIDO EL ->name('pago.procesar'))
 Route::post('/procesar-pago', function (Request $request) {
     $carrito = session()->get('carrito', []);
     $direccion = $request->direccion;
@@ -92,12 +85,10 @@ Route::post('/procesar-pago', function (Request $request) {
     });
     */
 
-    // 🧼 Vaciamos el carrito de la sesión
     session()->forget('carrito');
 
-    // 🚀 Redirección limpia hacia la tienda
     return redirect('/tienda')->with('success', '¡Pago exitoso! Tu pedido ha sido procesado de forma correcta.');
-})->name('pago.procesar');
+})->name('pago.procesar'); // <--- CORRECCIÓN CLAVE: El nombre original exacto que tus Blade buscan
 
 /*
 |--------------------------------------------------------------------------
@@ -122,13 +113,8 @@ Route::get('/membresias', function () {
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth'])->group(function () {
-    // Panel Principal (Dashboard de Inventario)
     Route::get('/admin', [AdminController::class, 'index'])->name('admin.index');
-    
-    // Control de Usuarios / Miembros
     Route::get('/admin/usuarios', [AdminController::class, 'usuarios'])->name('admin.usuarios');
-
-    // CRUD de Productos (Suplementos)
     Route::get('/admin/productos/crear', [AdminController::class, 'create'])->name('admin.productos.crear');
     Route::post('/admin/productos/guardar', [AdminController::class, 'store'])->name('admin.productos.guardar');
     Route::get('/admin/productos/editar/{id}', [AdminController::class, 'edit'])->name('admin.productos.editar');

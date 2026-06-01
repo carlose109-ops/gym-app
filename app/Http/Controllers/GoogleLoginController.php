@@ -43,13 +43,15 @@ class GoogleLoginController extends Controller
 
             Auth::login($user);
 
+            // Lista explícita de cuentas administradoras
             $admins = ['carloseduardot109@gmail.com', 'gabyrebal23@gmail.com'];
 
+            // Redirección directa por URLs para evitar capturas del Middleware global
             if (in_array($user->email, $admins)) {
-                return redirect()->route('admin.index')->with('success', 'Bienvenido al panel de administración.');
+                return redirect('/admin')->with('success', 'Bienvenido al panel de administración.');
             }
 
-            return redirect('/')->with('success', 'Has iniciado sesión correctamente.');
+            return redirect('/tienda')->with('success', 'Has iniciado sesión correctamente.');
 
         } catch (Exception $e) {
             Log::error('Error en login con Google: ' . $e->getMessage());

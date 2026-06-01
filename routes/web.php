@@ -5,8 +5,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use App\Http\Controllers\AdminController;
-use Laravel\Socialite\Facades\Socialite; // Aseguramos la importación de Socialite
+use Laravel\Socialite\Facades\Socialite;
 use App\Models\User;
+use Illuminate\Support\Str; // Asegura que funcione Str::random
 
 /*
 |--------------------------------------------------------------------------
@@ -26,14 +27,15 @@ Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name
 
 /*
 |--------------------------------------------------------------------------
-| 🌐 RUTAS DE AUTENTICACIÓN CON GOOGLE (RESTALURADAS)
+| 🌐 RUTAS DE AUTENTICACIÓN CON GOOGLE (CORREGIDAS A /google-callback)
 |--------------------------------------------------------------------------
 */
 Route::get('/login/google', function () {
     return Socialite::driver('google')->redirect();
 })->name('login.google');
 
-Route::get('/login/google/callback', function () {
+// Esta es la ruta exacta que está buscando Google al regresar (/google-callback)
+Route::get('/google-callback', function () {
     try {
         $googleUser = Socialite::driver('google')->user();
         
@@ -56,7 +58,8 @@ Route::get('/login/google/callback', function () {
         // Iniciar sesión en Laravel
         Auth::login($user);
 
-        return redirect('/home');
+        // Redirigir al inicio del sitio
+        return redirect('/');
 
     } catch (\Exception $e) {
         return redirect('/login')->with('error', 'Hubo un error al iniciar sesión con Google.');
@@ -94,7 +97,7 @@ Route::post('/procesar-pago', function (Request $request) {
 
     // 🚀 Redirección limpia hacia la tienda
     return redirect('/tienda')->with('success', '¡Pago exitoso! Tu pedido ha sido procesado de forma correcta.');
-})->name('pago.processed');
+})->name('pago.procesar');
 
 /*
 |--------------------------------------------------------------------------

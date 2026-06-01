@@ -10,17 +10,28 @@ class AdminController extends Controller
 {
     // --- ESTE ES EL CADENERO VIP (Seguridad) ---
     public function __construct()
-    {
-        $this->middleware('auth'); // Exige que haya una sesión iniciada
+{
+    $this->middleware('auth');
+    
+    $this->middleware(function ($request, $next) {
+        $user = Auth::user();
         
-        $this->middleware(function ($request, $next) {
-            // Si el correo NO es el tuyo, lo regresa al inicio
-            if (Auth::user()->email !== 'gabyrebal23@gmail.com') {
-                return redirect('/')->with('error', '⛔ Acceso denegado. No tienes permisos de administrador.');
-            }
-            return $next($request);
-        });
-    }
+        // --- DEPURACIÓN TEMPORAL ---
+        // Si ves esto en pantalla al entrar, sabrás qué está pasando
+        if (!$user) {
+            dd("No hay usuario autenticado");
+        }
+        
+        $admins = ['carloseduardot109@gmail.com', 'gabyrebal23@gmail.com'];
+
+        if (!in_array($user->email, $admins)) {
+            // Esto te dirá qué correo está leyendo el sistema realmente
+            dd("Correo actual: " . $user->email . " - No autorizado.");
+        }
+        
+        return $next($request);
+    });
+}
 
     // Función interna para asegurar que los 20 productos vivan en la memoria persistente
     private function getProductosDeMemoria()

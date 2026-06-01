@@ -30,30 +30,34 @@ class GoogleLoginController extends Controller
                 ->redirectUrl(url('/google-callback'))
                 ->user();
 
-            // 1. Buscar al usuario por email
+            // 1. Buscar o crear el usuario
             $user = User::where('email', $googleUser->email)->first();
 
-            if ($user) {
-                // Si el usuario ya existe, iniciar sesión
-                Auth::login($user);
-            } else {
-                // 2. Si no existe, crearlo
-                $newUser = User::create([
+            if (!$user) {
+                $user = User::create([
                     'name' => $googleUser->name,
                     'email' => $googleUser->email,
                     'google_id' => $googleUser->id,
-                    'password' => Hash::make('password123'), // O cualquier password temporal
+                    'password' => Hash::make('password123'),
                 ]);
-
-                Auth::login($newUser);
             }
 
-            // 3. Redirigir al home o dashboard
+            // 2. Iniciar sesión
+            Auth::login($user);
+
+            // 3. Lógica de redirección inteligente
+            $admins = ['carloseduardot109@gmail.com', 'gabyrebal23@gmail.com'];
+            
+            if (in_array(Auth::user()->email, $admins)) {
+                // Si es administrador, va al panel de control
+                return redirect()->route('admin.index');
+            }
+
+            // Si es usuario normal, va a la página principal
             return redirect('/');
 
         } catch (Exception $e) {
-            // Si hay error, redirigir al login con mensaje
-            return redirect('/login')->with('error', 'Hubo un problema al iniciar sesión con Google: ' . $e->getMessage());
+            return redirect('/login')->with('error', 'Hubo un problema al iniciar sesión con Google.');
         }
     }
 }
